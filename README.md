@@ -82,7 +82,7 @@ Then point your MCP config to the built file:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NOIR_DEFAULT_VERSION` | `v1.0.0-beta.19` | Noir version tag for the main repo |
+| `NOIR_DEFAULT_VERSION` | `v1.0.0-beta.21` | Noir version tag for the main repo |
 | `NOIR_MCP_REPOS_DIR` | `~/.noir-mcp` | Base directory for cloned repos |
 
 ## Development

@@ -34,5 +34,5 @@ Add an entry to `BASE_REPOS` in `src/repos/config.ts`. Each entry needs: `name`,
 
 ### Environment Variables
 
-- `NOIR_DEFAULT_VERSION` — Tag for the noir repo (default: `v1.0.0-beta.19`)
+- `NOIR_DEFAULT_VERSION` — Tag for the noir repo (default: `v1.0.0-beta.21`)
 - `NOIR_MCP_REPOS_DIR` — Base directory for cloned repos (default: `~/.noir-mcp`)
