@@ -10,6 +10,12 @@ MCP server for Noir development — clones and searches Noir documentation, stan
 claude mcp add noir-mcp -- npx noir-mcp-server@latest
 ```
 
+### Codex
+
+```bash
+codex mcp add noir-mcp -- npx noir-mcp-server@latest
+```
+
 ### Claude Desktop / Cursor / Windsurf
 
 Add to your MCP config file (e.g. `~/.claude/mcp.json`, `claude_desktop_config.json`):
@@ -22,6 +28,23 @@ Add to your MCP config file (e.g. `~/.claude/mcp.json`, `claude_desktop_config.j
       "args": ["noir-mcp-server@latest"]
     }
   }
+}
+```
+
+### OpenCode
+
+Add to your config file (e.g. `~/.config/opencode/opencode.json`):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "noir": {
+      "type": "local",
+      "command": ["npx", "-y", "noir-mcp-server@latest"],
+      "enabled": true,
+    },
+  },
 }
 ```
 
