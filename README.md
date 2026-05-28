@@ -31,6 +31,23 @@ Add to your MCP config file (e.g. `~/.claude/mcp.json`, `claude_desktop_config.j
 }
 ```
 
+### OpenCode
+
+Add to your config file (e.g. `~/.config/opencode/opencode.json`):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "noir-mcp-server": {
+      "type": "local",
+      "command": ["npx", "-y", "noir-mcp-server@latest"],
+      "enabled": true,
+    },
+  },
+}
+```
+
 ### From source
 
 ```bash
