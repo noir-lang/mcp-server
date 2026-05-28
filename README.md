@@ -10,6 +10,12 @@ MCP server for Noir development — clones and searches Noir documentation, stan
 claude mcp add noir-mcp -- npx noir-mcp-server@latest
 ```
 
+### Codex
+
+```bash
+codex mcp add noir-mcp -- npx noir-mcp-server@latest
+```
+
 ### Claude Desktop / Cursor / Windsurf
 
 Add to your MCP config file (e.g. `~/.claude/mcp.json`, `claude_desktop_config.json`):
