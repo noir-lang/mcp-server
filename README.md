@@ -39,7 +39,7 @@ Add to your config file (e.g. `~/.config/opencode/opencode.json`):
 {
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
-    "noir-mcp-server": {
+    "noir": {
       "type": "local",
       "command": ["npx", "-y", "noir-mcp-server@latest"],
       "enabled": true,
