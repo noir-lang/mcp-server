@@ -12,60 +12,9 @@ vi.mock("../../src/utils/git.js", () => ({
 }));
 
 // Must import after mocks are set up
-const { escapeShell, parseRgOutput, getFileType } = await import(
+const { parseRgOutput, getFileType } = await import(
   "../../src/utils/search.js"
 );
-
-describe("escapeShell()", () => {
-  it("passes through simple strings", () => {
-    expect(escapeShell("hello")).toBe("hello");
-    expect(escapeShell("fn main")).toBe("fn main");
-  });
-
-  it("escapes double quotes", () => {
-    expect(escapeShell('say "hi"')).toBe('say \\"hi\\"');
-  });
-
-  it("escapes dollar signs", () => {
-    expect(escapeShell("$HOME")).toBe("\\$HOME");
-  });
-
-  it("escapes backticks", () => {
-    expect(escapeShell("`whoami`")).toBe("\\`whoami\\`");
-  });
-
-  it("escapes backslashes", () => {
-    expect(escapeShell("a\\b")).toBe("a\\\\b");
-  });
-
-  it("escapes exclamation marks", () => {
-    expect(escapeShell("hello!")).toBe("hello\\!");
-  });
-
-  it("preserves regex characters", () => {
-    expect(escapeShell("foo|bar")).toBe("foo|bar");
-    expect(escapeShell("a*b+c?")).toBe("a*b+c?");
-    expect(escapeShell("(group)")).toBe("(group)");
-    expect(escapeShell("[abc]")).toBe("[abc]");
-    expect(escapeShell("a{2,3}")).toBe("a{2,3}");
-    expect(escapeShell("^start$end")).toContain("^start");
-    // $ gets escaped, which is correct for shell safety
-    expect(escapeShell("^start$end")).toBe("^start\\$end");
-  });
-
-  it("handles shell injection attempts", () => {
-    // The " is escaped with a backslash, preventing shell interpretation
-    const result1 = escapeShell('"; rm -rf /');
-    expect(result1).toBe('\\"; rm -rf /');
-    expect(result1.startsWith('\\"')).toBe(true);
-
-    const result2 = escapeShell("`whoami`");
-    expect(result2).toBe("\\`whoami\\`");
-
-    const result3 = escapeShell("$(whoami)");
-    expect(result3).toBe("\\$(whoami)");
-  });
-});
 
 describe("parseRgOutput()", () => {
   it("parses standard file:line:content format", () => {

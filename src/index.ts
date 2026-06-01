@@ -6,6 +6,8 @@
  * standard library, examples, and library source code through cloned repositories.
  */
 
+import { createRequire } from "module";
+
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -37,15 +39,43 @@ import {
   formatLibrariesList,
 } from "./formatting.js";
 
+import { DEFAULT_NOIR_VERSION } from "./repos/config.js";
+
+const { version: SERVER_VERSION } = createRequire(import.meta.url)(
+  "../package.json"
+) as { version: string };
+
+/**
+ * Standing guidance surfaced to the agent on connect. Noir syntax shifts
+ * between releases, so the agent should verify code rather than trust memory.
+ */
+const SERVER_INSTRUCTIONS = `This server provides Noir language documentation, the standard library, and \
+in-repo examples pinned to a specific Noir compiler version (default ${DEFAULT_NOIR_VERSION}; \
+check noir_status for the active version). Community libraries are cloned at their latest \
+branch, NOT a release matched to that compiler, so their source may not match the pinned version.
+
+Noir is pre-1.0 and its syntax changes between releases. For the pinned compiler, treat this \
+server's docs and stdlib as the source of truth over prior knowledge; treat library source as a \
+reference to verify, not a guarantee.
+
+After writing or editing a Noir circuit, verify it compiles against the matching \
+toolchain before presenting it as correct:
+- Run \`nargo check\` (fast; type-checks and generates Prover.toml) or \`nargo compile\`.
+- Make sure the local toolchain matches the pinned version (install with noirup, \
+e.g. \`noirup --version <version>\`), since errors are version-specific.
+- When adding a library, declare it in Nargo.toml as a git dependency with a tag \
+(e.g. \`bignum = { git = "https://github.com/noir-lang/noir-bignum", tag = "..." }\`).`;
+
 const server = new Server(
   {
     name: "noir-mcp",
-    version: "1.0.0",
+    version: SERVER_VERSION,
   },
   {
     capabilities: {
       tools: {},
     },
+    instructions: SERVER_INSTRUCTIONS,
   }
 );
 

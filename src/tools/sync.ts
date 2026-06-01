@@ -60,19 +60,20 @@ export async function syncRepos(options: {
     };
   }
 
-  const results: SyncResult["repos"] = [];
-
-  for (const config of reposToSync) {
+  // Clone repos in parallel (bounded). Cloning is network/IO bound, so this
+  // cuts wall-clock time when syncing many libraries; results preserve the
+  // configured order.
+  const results = await mapWithConcurrency(reposToSync, 6, async (config) => {
     try {
       const status = await cloneRepo(config, force);
-      results.push({ name: config.name, status });
+      return { name: config.name, status };
     } catch (error) {
-      results.push({
+      return {
         name: config.name,
         status: `Error: ${error instanceof Error ? error.message : String(error)}`,
-      });
+      };
     }
-  }
+  });
 
   const allSuccess = results.every(
     (r) => !r.status.toLowerCase().includes("error")
@@ -118,4 +119,33 @@ export async function getStatus(): Promise<{
     reposDir: REPOS_DIR,
     repos,
   };
+}
+
+/**
+ * Map over items with a bounded number of concurrent workers, preserving
+ * input order in the results regardless of which task finishes first.
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+
+  async function worker(): Promise<void> {
+    while (true) {
+      const index = next++;
+      if (index >= items.length) return;
+      results[index] = await fn(items[index]);
+    }
+  }
+
+  const workers = Array.from(
+    { length: Math.min(limit, items.length) },
+    () => worker()
+  );
+  await Promise.all(workers);
+
+  return results;
 }
