@@ -104,7 +104,7 @@ Then point your MCP config to the built file:
 ## When this server helps (and when it doesn't)
 
 Good fit:
-- Writing or editing Noir circuits with an AI agent that would otherwise lean on stale, pre-1.0 syntax from memory. Docs, stdlib, and examples are pinned to a specific Noir release, so the agent works from version-correct source.
+- Writing or editing Noir circuits with an AI agent that would otherwise lean on stale, pre-1.0 syntax from memory. The Noir docs and standard library are pinned to a specific release, so the agent works from version-correct language source rather than guessing.
 - Looking up how a stdlib function, trait, or type is actually defined or used (e.g. `hash`, `Field`, `assert`, `pedersen`).
 - Finding real, working example circuits to adapt (`noir-examples`, `noir/examples`).
 - Discovering ecosystem libraries and reading their source.
@@ -120,7 +120,7 @@ Poor fit:
 ## Limitations
 
 - **Read-only, no verification.** It surfaces source and docs but does not compile, type-check, or run circuits. It cannot confirm that code is correct; run `nargo check` against a matching toolchain.
-- **Only the compiler is version-pinned.** `noir` and `bb.js` are pinned to a tag; community libraries are cloned at their `main`/`master` branch tip, which may be newer or older than the pinned compiler. Noir's `compiler_version` field only expresses a full-release floor (e.g. `>=1.0.0`) and cannot distinguish between betas, so it will not flag a beta-level mismatch. Treat library code as a reference and verify it against your toolchain.
+- **Core repos are pinned; libraries are not.** The `noir` repo (docs, stdlib, in-repo examples) and `bb.js` are checked out at a fixed tag; community libraries are cloned at their `main`/`master` branch tip, which may be newer or older than the pinned compiler. Noir's `compiler_version` field only expresses a full-release floor (e.g. `>=1.0.0`) and cannot distinguish between betas, so it will not flag a beta-level mismatch. Treat library code as a reference and verify it against your toolchain.
 - **Keyword search, not semantic.** Search is ripgrep over files. It excels at finding a known symbol or string and is weak at open-ended "how do I do X" questions.
 - **Single-line matches.** Results are matching lines without surrounding context; reading the full function or doc comment usually needs a follow-up `noir_read_file`.
 - **Sync required, and the first sync is slow.** Repos are cloned locally over the network before search works. Core is two repos; adding library or reference categories clones more.
