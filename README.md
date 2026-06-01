@@ -101,6 +101,33 @@ Then point your MCP config to the built file:
 **Reference** (sync with `categories: ["reference"]`):
 - `awesome-noir` — Curated ecosystem index
 
+## When this server helps (and when it doesn't)
+
+Good fit:
+- Writing or editing Noir circuits with an AI agent that would otherwise lean on stale, pre-1.0 syntax from memory. The Noir docs and standard library are pinned to a specific release, so the agent works from version-correct language source rather than guessing.
+- Looking up how a stdlib function, trait, or type is actually defined or used (e.g. `hash`, `Field`, `assert`, `pedersen`).
+- Finding real, working example circuits to adapt (`noir-examples`, `noir/examples`).
+- Discovering ecosystem libraries and reading their source.
+- Grounding an agent so it stops inventing outdated syntax. Pair it with `nargo check` to confirm the result compiles.
+
+Poor fit:
+- You want guaranteed-correct, compilable output without verifying it yourself. This server does not compile or run anything; always confirm with `nargo check`.
+- You need community libraries to exactly match your pinned compiler. Libraries are cloned at their latest branch, not a release matched to the compiler (see Limitations).
+- Conceptual or design questions ("what is the best way to structure a Merkle-membership circuit?"). Search is keyword/regex, not semantic; the model plus the docs site may serve you better.
+- Proving-backend workflows beyond reading `bb.js` source.
+- Offline use, or environments without `git` (and ideally `ripgrep`) installed.
+
+## Limitations
+
+- **Read-only, no verification.** It surfaces source and docs but does not compile, type-check, or run circuits. It cannot confirm that code is correct; run `nargo check` against a matching toolchain.
+- **Core repos are pinned; libraries are not.** The `noir` repo (docs, stdlib, in-repo examples) and `bb.js` are checked out at a fixed tag; community libraries are cloned at their `main`/`master` branch tip, which may be newer or older than the pinned compiler. Noir's `compiler_version` field only expresses a full-release floor (e.g. `>=1.0.0`) and cannot distinguish between betas, so it will not flag a beta-level mismatch. Treat library code as a reference and verify it against your toolchain.
+- **Keyword search, not semantic.** Search is ripgrep over files. It excels at finding a known symbol or string and is weak at open-ended "how do I do X" questions.
+- **Single-line matches.** Results are matching lines without surrounding context; reading the full function or doc comment usually needs a follow-up `noir_read_file`.
+- **Sync required, and the first sync is slow.** Repos are cloned locally over the network before search works. Core is two repos; adding library or reference categories clones more.
+- **One version at a time.** The server serves a single pinned Noir line (see Environment Variables). Switching versions means re-syncing with `version`, and library compatibility is still not guaranteed.
+- **Snapshot, not live.** Content reflects the pinned tag (docs/stdlib) and your last sync (libraries). Re-sync to pick up updates.
+- **Host dependencies.** Requires `git`; uses `ripgrep` when present and falls back to a slower built-in search otherwise.
+
 ## Environment Variables
 
 | Variable | Default | Description |
@@ -114,5 +141,6 @@ Then point your MCP config to the built file:
 npm run dev    # Watch mode
 npm run build  # Build
 npm start      # Run server
-node test.mjs  # Run tests
+npm test       # Run the Vitest unit suite
+node test.mjs  # Optional live integration smoke test (clones repos)
 ```

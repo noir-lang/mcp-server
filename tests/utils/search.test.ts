@@ -12,13 +12,15 @@ vi.mock("../../src/utils/git.js", () => ({
 
 // Mock child_process
 vi.mock("child_process", () => ({
-  execSync: vi.fn(),
+  execFileSync: vi.fn(),
 }));
 
 // Mock fs
 vi.mock("fs", () => ({
   existsSync: vi.fn(() => true),
   readFileSync: vi.fn(() => "line1\nline2\nline3"),
+  // Identity by default: real path === resolved path (no symlinks).
+  realpathSync: vi.fn((p: string) => p),
 }));
 
 // Mock globby
@@ -34,8 +36,8 @@ vi.mock("../../src/repos/config.js", async (importOriginal) => {
   };
 });
 
-const { execSync } = await import("child_process");
-const { existsSync, readFileSync } = await import("fs");
+const { execFileSync } = await import("child_process");
+const { existsSync, readFileSync, realpathSync } = await import("fs");
 const { globbySync } = await import("globby");
 const { isRepoCloned } = await import("../../src/utils/git.js");
 
@@ -50,9 +52,10 @@ const {
   manualSearch,
 } = await import("../../src/utils/search.js");
 
-const mockedExecSync = vi.mocked(execSync);
+const mockedExecFileSync = vi.mocked(execFileSync);
 const mockedExistsSync = vi.mocked(existsSync);
 const mockedReadFileSync = vi.mocked(readFileSync);
+const mockedRealpathSync = vi.mocked(realpathSync);
 const mockedGlobbySync = vi.mocked(globbySync);
 const mockedIsRepoCloned = vi.mocked(isRepoCloned);
 
@@ -61,42 +64,59 @@ describe("utils/search", () => {
     vi.clearAllMocks();
     mockedExistsSync.mockReturnValue(true);
     mockedIsRepoCloned.mockReturnValue(true);
+    // Restore identity realpath unless a test overrides it.
+    mockedRealpathSync.mockImplementation((p) => p as string);
   });
 
+  // Extract the args array passed to execFileSync("rg", args, opts)
+  const rgArgs = (callIndex = 0): string[] =>
+    mockedExecFileSync.mock.calls[callIndex][1] as string[];
+
   describe("searchCode()", () => {
-    it("constructs ripgrep command with proper flags", () => {
-      mockedExecSync.mockReturnValue(
+    it("invokes rg with proper flags as an args array (no shell)", () => {
+      mockedExecFileSync.mockReturnValue(
         `${MOCK_REPOS_DIR}/noir/src/main.nr:1:fn main() {}\n`
       );
 
       searchCode("fn main", { filePattern: "*.nr", maxResults: 10 });
 
-      const call = mockedExecSync.mock.calls[0];
-      const cmd = call[0] as string;
-      expect(cmd).toContain("rg");
-      expect(cmd).toContain("-i"); // case insensitive by default
-      expect(cmd).toContain("-n");
-      expect(cmd).toContain("-g");
-      expect(cmd).toContain("*.nr");
-      expect(cmd).toContain("fn main");
+      // Command and args are separate; no shell string is built.
+      expect(mockedExecFileSync.mock.calls[0][0]).toBe("rg");
+      const args = rgArgs();
+      expect(args).toContain("-i"); // case insensitive by default
+      expect(args).toContain("-n");
+      expect(args).toContain("-g");
+      expect(args).toContain("*.nr");
+      // Query is passed via -e so a leading '-' is never treated as a flag.
+      expect(args).toContain("-e");
+      expect(args).toContain("fn main");
     });
 
     it("omits -i flag when caseSensitive is true", () => {
-      mockedExecSync.mockReturnValue("");
+      mockedExecFileSync.mockReturnValue("");
 
       searchCode("Test", { caseSensitive: true });
 
-      const cmd = mockedExecSync.mock.calls[0][0] as string;
-      expect(cmd).not.toMatch(/\s-i\s/);
+      expect(rgArgs()).not.toContain("-i");
     });
 
     it("searches specific repo when provided", () => {
-      mockedExecSync.mockReturnValue("");
+      mockedExecFileSync.mockReturnValue("");
 
       searchCode("query", { repo: "noir-bignum" });
 
-      const cmd = mockedExecSync.mock.calls[0][0] as string;
-      expect(cmd).toContain(join(MOCK_REPOS_DIR, "noir-bignum"));
+      expect(rgArgs()).toContain(join(MOCK_REPOS_DIR, "noir-bignum"));
+    });
+
+    it("passes a leading-dash query safely after -e", () => {
+      mockedExecFileSync.mockReturnValue("");
+
+      searchCode("-foo");
+
+      const args = rgArgs();
+      const eIndex = args.indexOf("-e");
+      expect(eIndex).toBeGreaterThanOrEqual(0);
+      expect(args[eIndex + 1]).toBe("-foo");
     });
 
     it("returns empty array when search path does not exist", () => {
@@ -107,7 +127,7 @@ describe("utils/search", () => {
     });
 
     it("falls back to manualSearch when rg fails", () => {
-      mockedExecSync.mockImplementation(() => {
+      mockedExecFileSync.mockImplementation(() => {
         throw new Error("rg not found");
       });
       mockedGlobbySync.mockReturnValue([]);
@@ -121,34 +141,31 @@ describe("utils/search", () => {
 
   describe("searchDocs()", () => {
     it("uses md/mdx file pattern", () => {
-      mockedExecSync.mockReturnValue("");
+      mockedExecFileSync.mockReturnValue("");
 
       searchDocs("getting started");
 
-      const cmd = mockedExecSync.mock.calls[0][0] as string;
-      expect(cmd).toContain("*.{md,mdx}");
+      expect(rgArgs()).toContain("*.{md,mdx}");
     });
 
     it("handles section path", () => {
       // When section exists, it searches within that subdirectory
       mockedExistsSync.mockReturnValue(true);
-      mockedExecSync.mockReturnValue("");
+      mockedExecFileSync.mockReturnValue("");
 
       searchDocs("install", { section: "tutorials" });
 
-      const cmd = mockedExecSync.mock.calls[0][0] as string;
-      expect(cmd).toContain("noir/docs/tutorials");
+      expect(rgArgs()).toContain(join(MOCK_REPOS_DIR, "noir/docs/tutorials"));
     });
   });
 
   describe("searchStdlib()", () => {
     it("searches within noir/noir_stdlib", () => {
-      mockedExecSync.mockReturnValue("");
+      mockedExecFileSync.mockReturnValue("");
 
       searchStdlib("hash");
 
-      const cmd = mockedExecSync.mock.calls[0][0] as string;
-      expect(cmd).toContain("noir/noir_stdlib");
+      expect(rgArgs()).toContain(join(MOCK_REPOS_DIR, "noir/noir_stdlib"));
     });
 
     it("returns empty when stdlib path does not exist", () => {
@@ -298,16 +315,48 @@ describe("utils/search", () => {
       );
     });
 
-    it("reads absolute path directly", () => {
+    it("reads an absolute path that is inside the repos dir", () => {
       mockedExistsSync.mockReturnValue(true);
       mockedReadFileSync.mockReturnValue("abs content");
 
-      const content = readFile("/absolute/path/file.nr");
+      const content = readFile(join(MOCK_REPOS_DIR, "noir/src/main.nr"));
       expect(content).toBe("abs content");
       expect(mockedReadFileSync).toHaveBeenCalledWith(
-        "/absolute/path/file.nr",
+        join(MOCK_REPOS_DIR, "noir/src/main.nr"),
         "utf-8"
       );
+    });
+
+    it("rejects an absolute path outside the repos dir", () => {
+      mockedExistsSync.mockReturnValue(true);
+      mockedReadFileSync.mockReturnValue("secret");
+
+      const content = readFile("/etc/passwd");
+      expect(content).toBeNull();
+      expect(mockedReadFileSync).not.toHaveBeenCalled();
+    });
+
+    it("rejects path traversal that escapes the repos dir", () => {
+      mockedExistsSync.mockReturnValue(true);
+      mockedReadFileSync.mockReturnValue("secret");
+
+      const content = readFile("../../etc/passwd");
+      expect(content).toBeNull();
+      expect(mockedReadFileSync).not.toHaveBeenCalled();
+    });
+
+    it("rejects a symlink whose real path escapes the repos dir", () => {
+      mockedExistsSync.mockReturnValue(true);
+      mockedReadFileSync.mockReturnValue("secret");
+      // The path is lexically inside, but its real target is outside.
+      const linkPath = join(MOCK_REPOS_DIR, "noir/evil-link");
+      mockedRealpathSync.mockImplementation((p) =>
+        p === linkPath ? "/etc/passwd" : (p as string)
+      );
+
+      const content = readFile("noir/evil-link");
+      expect(content).toBeNull();
+      expect(mockedReadFileSync).not.toHaveBeenCalled();
     });
 
     it("returns null when file does not exist", () => {

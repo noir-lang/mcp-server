@@ -154,6 +154,24 @@ describe("tools/sync", () => {
       const result = await syncRepos({ version: "v0.50.0" });
       expect(result.version).toBe("v0.50.0");
     });
+
+    it("preserves config order even when a later clone resolves first", async () => {
+      // First repo (noir) resolves slowly; second (noir-examples) resolves
+      // immediately. Result order must still follow the configured order.
+      mockedCloneRepo.mockImplementation((config) =>
+        config.name === "noir"
+          ? new Promise((res) => setTimeout(() => res("Cloned noir"), 10))
+          : Promise.resolve("Cloned noir-examples")
+      );
+
+      const result = await syncRepos({}); // core: noir, then noir-examples
+      expect(result.repos.map((r) => r.name)).toEqual([
+        "noir",
+        "noir-examples",
+      ]);
+      expect(result.repos[0].status).toBe("Cloned noir");
+      expect(result.repos[1].status).toBe("Cloned noir-examples");
+    });
   });
 
   describe("getStatus()", () => {

@@ -2,9 +2,9 @@
  * Search utilities for finding content in cloned repositories
  */
 
-import { execSync } from "child_process";
-import { existsSync, readFileSync } from "fs";
-import { join, relative, extname } from "path";
+import { execFileSync } from "child_process";
+import { existsSync, readFileSync, realpathSync } from "fs";
+import { join, relative, extname, resolve, isAbsolute } from "path";
 import { globbySync } from "globby";
 import { REPOS_DIR, getRepoPath, isRepoCloned } from "./git.js";
 import { NOIR_REPOS, RepoCategory } from "../repos/config.js";
@@ -57,26 +57,27 @@ export function searchCode(
   }
 
   try {
-    const rgFlags = [
-      caseSensitive ? "" : "-i",
+    // Pass args as an array (no shell) to avoid injection and shell glob
+    // expansion of the file pattern. -m bounds matches per file (buffer
+    // safety); the total result count is then capped by parseRgOutput.
+    const args = [
+      ...(caseSensitive ? [] : ["-i"]),
       "-n",
       "--no-heading",
       "-g",
       filePattern,
       "-m",
       String(maxResults * 2),
-    ]
-      .filter(Boolean)
-      .join(" ");
+      "-e",
+      query,
+      searchPath,
+    ];
 
-    const result = execSync(
-      `rg ${rgFlags} "${escapeShell(query)}" "${searchPath}"`,
-      {
-        encoding: "utf-8",
-        maxBuffer: 10 * 1024 * 1024,
-        timeout: 30000,
-      }
-    );
+    const result = execFileSync("rg", args, {
+      encoding: "utf-8",
+      maxBuffer: 10 * 1024 * 1024,
+      timeout: 30000,
+    });
 
     return parseRgOutput(result, maxResults);
   } catch {
@@ -195,14 +196,30 @@ export function listLibraries(category?: RepoCategory): LibraryInfo[] {
 }
 
 /**
- * Read a specific file
+ * Read a specific file, constrained to the repos directory.
+ * Rejects any path (via `..`, an absolute path, or a symlink) that resolves
+ * outside REPOS_DIR. Absolute paths that stay inside REPOS_DIR are allowed.
  */
 export function readFile(filePath: string): string | null {
-  const fullPath = filePath.startsWith("/")
-    ? filePath
-    : join(REPOS_DIR, filePath);
+  const fullPath = isAbsolute(filePath)
+    ? resolve(filePath)
+    : resolve(REPOS_DIR, filePath);
+
+  // Lexical containment: the resolved path must stay inside REPOS_DIR.
+  if (!isInside(REPOS_DIR, fullPath)) {
+    return null;
+  }
 
   if (!existsSync(fullPath)) {
+    return null;
+  }
+
+  // Real-path containment: defeat symlinks that point outside the repos dir.
+  try {
+    if (!isInside(realpathSync(REPOS_DIR), realpathSync(fullPath))) {
+      return null;
+    }
+  } catch {
     return null;
   }
 
@@ -235,12 +252,10 @@ export function findExample(name: string): FileInfo | null {
 
 // --- Helper functions ---
 
-/**
- * Escape a string for safe use inside double quotes in a shell command.
- * Preserves regex syntax (|, *, +, etc.) while preventing shell injection.
- */
-export function escapeShell(str: string): string {
-  return str.replace(/["$`\\!]/g, "\\$&");
+/** True if `target` is `root` itself or nested inside it (no `..` escape). */
+function isInside(root: string, target: string): boolean {
+  const rel = relative(root, target);
+  return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
 }
 
 export function parseRgOutput(output: string, maxResults: number): SearchResult[] {

@@ -20,6 +20,12 @@ export function formatSyncResult(result: SyncResult): string {
     lines.push(`  ${icon} ${repo.name}: ${repo.status}`);
   }
 
+  lines.push(
+    "",
+    `Tip: this content is pinned to Noir ${result.version}. After writing or editing a`,
+    "circuit, verify it with `nargo check` using a matching toolchain before relying on it."
+  );
+
   return lines.join("\n");
 }
 

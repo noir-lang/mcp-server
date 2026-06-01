@@ -8,10 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run build          # TypeScript compile (tsc) to dist/
 npm run dev            # Watch mode (tsc --watch)
 npm start              # Run the MCP server (node dist/index.js)
-node test.mjs          # Integration test — syncs core repos, searches, lists examples
+npm test               # Run the Vitest unit suite (tests/)
+node test.mjs          # Optional live integration smoke test (clones repos, searches, lists examples)
 ```
 
-No linter or unit test framework is configured. The only test is `test.mjs` which does a full integration run (clones repos, searches code, lists examples).
+Unit tests run on Vitest (config in `vitest.config.ts`); see `tests/`. No linter is configured. `test.mjs` is a separate live integration run that actually clones repos over the network.
 
 ## Architecture
 
